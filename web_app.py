@@ -225,10 +225,21 @@ def start_app(port=5000):
     discovery_thread.start()
     server_thread.start()
 
-    # 2. Start Web Server
+    # 2. Start Web Server (with fallback if port is in use)
     host_ip = get_local_ip()
-    server_address = ('0.0.0.0', port)
-    httpd = ThreadingHTTPServer(server_address, P2PWebHandler)
+    httpd = None
+    for p in [port, 5001, 8000, 8080]:
+        try:
+            server_address = ('0.0.0.0', p)
+            httpd = ThreadingHTTPServer(server_address, P2PWebHandler)
+            port = p
+            break
+        except OSError:
+            continue
+
+    if not httpd:
+        print(f"Error: Could not bind to port {port} or fallback ports.")
+        return
 
     print("=" * 60)
     print("🌐 P2P File Transfer Web Application Running!")
