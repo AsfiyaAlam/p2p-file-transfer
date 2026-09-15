@@ -1,0 +1,106 @@
+import os
+import shutil
+import socket 
+from utils import zip_folder, unzip_folder, calculate_hash
+
+
+class FileTransfer:
+    def __init__(self, host='0.0.0.0', port=12345):
+        self.host = host
+        self.port = port
+    
+    def server(self):
+        reciever_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        reciever_socket.bind((self.host, self.port))
+        reciever_socket.listen(5)
+        print(f"Listening for connections on {self.host}:{self.port}...")
+        while True:
+            conn, addr = reciever_socket.accept()
+            print(f"Connected to {addr}")
+            try:
+            
+                raw_header = conn.recv(1024)
+                header = raw_header.decode('utf-8')
+                
+                if header:
+                    file_name, file_size, file_hash = header.split('|')
+                    file_size = int(file_size)
+                    print(f"Receiving file: {file_name} of size: {file_size} bytes")
+
+                    if os.path.exists(file_name):
+
+                        existing_bytes = os.path.getsize(file_name)
+                    else:
+                        existing_bytes = 0
+
+                    # Acknowledge the header
+                    conn.sendall(f"READY|{existing_bytes}".encode('utf-8'))
+
+
+                    # Open file and receive chunks
+                    with open(f"{file_name}", "ab") as f:
+                        bytes_received = existing_bytes
+                        while bytes_received < file_size:
+                            chunk = conn.recv(1024)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            bytes_received += len(chunk)
+
+                    received_hash = calculate_hash(file_name)
+                    if received_hash == file_hash:
+                        print(f"File received successfully and verified.")
+                        if file_name.endswith('.zip'):
+                            received_folder = unzip_folder(file_name)
+                    else:
+                        print(f"File received but verification failed.")
+                        os.remove(file_name)
+            except Exception as e:
+                print("connection with cient lost: ", e)
+            finally:
+                
+                # Send exit confirmation so the client knows it's safe to hang up
+                conn.sendall(b'EXIT')
+                
+                conn.close()
+
+    def send_file(self, target_ip, file_path):
+        sender_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        print(f"Connecting to {target_ip}...")
+        try:
+            sender_socket.connect((target_ip, self.port))
+
+            if os.path.isdir(file_path):
+                file_path = zip_folder(file_path)
+            file_name = os.path.basename(file_path)
+            file_size = os.path.getsize(file_path)
+            file_hash = calculate_hash(file_path)
+
+            # Send Header
+            header = f"{file_name}|{file_size}|{file_hash}"
+            sender_socket.send(header.encode('utf-8')) 
+            
+            # Wait for ACK
+            raw_data = sender_socket.recv(1024)
+            message = raw_data.decode('utf-8')
+            message_recv, existing_byte = message.split('|')
+            # Send File
+            if message_recv == 'READY':
+                with open(file_path, "rb") as file:
+                    file.seek(int(existing_byte))
+                    while True:
+                        chunk = file.read(1024)
+                        if not chunk:
+                            break
+                        sender_socket.sendall(chunk)
+                print("File data sent successfully.")
+
+            # Wait for Server to confirm receipt before closing
+            exit_message = sender_socket.recv(1024).decode('utf-8')
+            if exit_message == 'EXIT':
+                print("Server confirmed receipt. Disconnecting.")
+        except Exception as e:
+            print("Transfer failed: ", e)
+        finally:
+            sender_socket.close()
