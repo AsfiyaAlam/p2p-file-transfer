@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P File Transfer</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #131b2e;
+      --surface-border: #222f4c;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-glow: rgba(59, 130, 246, 0.25);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.25);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--surface-border);
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .title-group h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .node-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .node-meta span {
+      background: var(--surface);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--surface-border);
+    }
+
+    .node-meta strong {
+      color: var(--text);
+    }
+
+    /* Grid Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Card Component */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 10px var(--accent-glow);
+    }
+
+    .btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #1e293b;
+      border: 1px solid var(--surface-border);
+      box-shadow: none;
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: #27354f;
+    }
+
+    /* Peer List */
+    .peer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 120px;
+    }
+
+    .peer-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .peer-item:hover {
+      border-color: var(--accent);
+      background: #152238;
+    }
+
+    .peer-item.selected {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.15);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .peer-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .peer-icon {
+      font-size: 1.25rem;
+    }
+
+    .peer-ip {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .peer-tag {
+      font-size: 0.75rem;
+      background: #1e293b;
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-align: center;
+      border: 1px dashed var(--surface-border);
+      border-radius: 8px;
+    }
+
+    /* Tabs */
+    .tab-group {
+      display: flex;
+      gap: 8px;
+      background: #0f172a;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--surface-border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Drop Zone */
+    .dropzone {
+      border: 2px dashed var(--surface-border);
+      border-radius: var(--radius);
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #0f172a;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.08);
+    }
+
+    .dropzone-icon {
+      font-size: 2.2rem;
+      margin-bottom: 8px;
+    }
+
+    .file-preview {
+      margin-top: 12px;
+      background: #1e293b;
+      padding: 10px 14px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid var(--surface-border);
+      font-size: 0.85rem;
+    }
+
+    /* Form Input */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .input-field {
+      background: #0f172a;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent);
+    }
+
+    /* Target Banner */
+    .target-banner {
+      background: #0f172a;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .target-banner strong {
+      color: var(--accent);
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    .alert-success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--success);
+      color: #34d399;
+    }
+
+    .alert-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--danger);
+      color: #f87171;
+    }
+
+    /* Terminal Log */
+    .terminal {
+      background: #090d16;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.8rem;
+      height: 200px;
+      overflow-y: auto;
+      color: #38bdf8;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .terminal-line {
+      word-break: break-all;
+    }
+
+    /* Received Files List */
+    .received-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .received-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      border: 1px solid var(--surface-border);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .file-name {
+      font-weight: 500;
+    }
+
+    .file-meta {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="title-group">
+        <h1>🌐 P2P File Transfer</h1>
+        <div class="badge">
+          <div class="badge-dot"></div>
+          <span>Active Peer Node</span>
+        </div>
+      </div>
+      <div class="node-meta">
+        <span>Host IP: <strong id="host-ip">Detecting...</strong></span>
+        <span>UDP Discovery: <strong>50000</strong></span>
+        <span>TCP Transfer: <strong>12345</strong></span>
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="grid">
+      <!-- Left Column: Discovery & Logs -->
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Card 1: Peer Discovery -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📡 Discovered Peers</div>
+            <button class="btn btn-secondary" id="scan-btn" onclick="scanNetwork()">
+              <span>Scan Network</span>
+            </button>
+          </div>
+          <div class="peer-list" id="peer-list">
+            <div class="empty-state">
+              Click "Scan Network" to discover available peers on your local Wi-Fi/LAN.
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Live Activity Console -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📟 Live Engine Logs</div>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="clearLogs()">Clear</button>
+          </div>
+          <div class="terminal" id="terminal-logs">
+            <div class="terminal-line">[System] P2P background daemon active.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Sender & Received Files -->
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Card 3: Send Payload -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📤 Send File / Folder</div>
+          </div>
+
+          <!-- Target Peer Banner -->
+          <div class="target-banner">
+            <span>Target Peer:</span>
+            <strong id="target-peer-label">No peer selected</strong>
+          </div>
+
+          <!-- Mode Tabs -->
+          <div class="tab-group">
+            <button class="tab-btn active" id="tab-upload-btn" onclick="setSendMode('upload')">Browser Upload</button>
+            <button class="tab-btn" id="tab-path-btn" onclick="setSendMode('path')">Local File/Folder Path</button>
+          </div>
+
+          <!-- Upload Dropzone View -->
+          <div id="view-upload">
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+              <div class="dropzone-icon">📁</div>
+              <p><strong>Click to browse</strong> or drag & drop any file here</p>
+              <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Images, videos, documents, binaries</p>
+              <input type="file" id="file-input" style="display: none;" onchange="handleFileSelected(this.files)">
+            </div>
+            <div id="file-preview-card" style="display: none;" class="file-preview">
+              <span id="preview-filename">file.png</span>
+              <span id="preview-filesize" style="color: var(--text-muted);">0 KB</span>
+            </div>
+          </div>
+
+          <!-- Direct Path View -->
+          <div id="view-path" style="display: none;" class="input-group">
+            <label class="input-label">Absolute or relative path to file or directory:</label>
+            <input type="text" id="direct-path-input" class="input-field" placeholder="/home/asfiya/Documents/my_folder or image.png">
+          </div>
+
+          <!-- Alerts -->
+          <div id="alert-box" class="alert"></div>
+
+          <!-- Send Action Button -->
+          <button class="btn" id="send-btn" onclick="initiateTransfer()" style="width: 100%; padding: 12px;">
+            <span>Send to Peer</span>
+          </button>
+        </div>
+
+        <!-- Card 4: Received Files Inbox -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📥 Received Files (Inbox)</div>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="loadReceivedFiles()">Refresh</button>
+          </div>
+          <div class="received-list" id="received-list">
+            <div class="empty-state" style="padding: 16px;">Loading files...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedPeerIp = null;
+    let selectedFile = null;
+    let currentSendMode = 'upload'; // 'upload' or 'path'
+
+    // Initialize Status
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        document.getElementById('host-ip').textContent = data.host_ip || '127.0.0.1';
+      } catch (err) {
+        console.error('Failed to load status:', err);
+      }
+    }
+
+    // Scan Network
+    async function scanNetwork() {
+      const scanBtn = document.getElementById('scan-btn');
+      const peerList = document.getElementById('peer-list');
+      
+      scanBtn.disabled = true;
+      scanBtn.innerHTML = '<span class="spinner"></span> Scanning...';
+      peerList.innerHTML = '<div class="empty-state"><span class="spinner" style="margin-bottom: 8px;"></span>Broadcasting P2P_DISCOVER on local network...</div>';
+
+      try {
+        const res = await fetch('/api/scan', { method: 'POST' });
+        const data = await res.json();
+        
+        peerList.innerHTML = '';
+        if (!data.peers || data.peers.length === 0) {
+          peerList.innerHTML = '<div class="empty-state">No peers found on the network. Make sure other devices are running the application.</div>';
+        } else {
+          data.peers.forEach((ip, idx) => {
+            const item = document.createElement('div');
+            item.className = 'peer-item' + (ip === selectedPeerIp ? ' selected' : '');
+            item.onclick = () => selectPeer(ip, item);
+            item.innerHTML = `
+              <div class="peer-info">
+                <span class="peer-icon">💻</span>
+                <div>
+                  <div class="peer-ip">${ip}</div>
+                  <div class="peer-tag">Peer #${idx + 1}</div>
+                </div>
+              </div>
+              <span style="font-size: 0.8rem; color: var(--accent); font-weight: 600;">${ip === selectedPeerIp ? '✓ Selected' : 'Connect'}</span>
+            `;
+            peerList.appendChild(item);
+          });
+        }
+      } catch (err) {
+        peerList.innerHTML = `<div class="empty-state" style="color: var(--danger);">Scan failed: ${err.message}</div>`;
+      } finally {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = '<span>Scan Network</span>';
+      }
+    }
+
+    // Select Peer
+    function selectPeer(ip, element) {
+      selectedPeerIp = ip;
+      document.querySelectorAll('.peer-item').forEach(el => el.classList.remove('selected'));
+      if (element) element.classList.add('selected');
+      document.getElementById('target-peer-label').textContent = ip;
+    }
+
+    // Switch Send Mode
+    function setSendMode(mode) {
+      currentSendMode = mode;
+      document.getElementById('tab-upload-btn').classList.toggle('active', mode === 'upload');
+      document.getElementById('tab-path-btn').classList.toggle('active', mode === 'path');
+      document.getElementById('view-upload').style.display = mode === 'upload' ? 'block' : 'none';
+      document.getElementById('view-path').style.display = mode === 'path' ? 'block' : 'none';
+    }
+
+    // Handle File Selection
+    function handleFileSelected(files) {
+      if (files.length > 0) {
+        selectedFile = files[0];
+        document.getElementById('file-preview-card').style.display = 'flex';
+        document.getElementById('preview-filename').textContent = selectedFile.name;
+        document.getElementById('preview-filesize').textContent = formatBytes(selectedFile.size);
+      }
+    }
+
+    // Drag & Drop Listeners
+    const dropzone = document.getElementById('dropzone');
+    ['dragenter', 'dragover'].forEach(name => {
+      dropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+      });
+    });
+    dropzone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files.length > 0) {
+        handleFileSelected(e.dataTransfer.files);
+      }
+    });
+
+    // Format Bytes
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Show Alert
+    function showAlert(type, message) {
+      const alertBox = document.getElementById('alert-box');
+      alertBox.className = `alert alert-${type}`;
+      alertBox.textContent = message;
+      alertBox.style.display = 'block';
+    }
+
+    // Initiate File Transfer
+    async function initiateTransfer() {
+      if (!selectedPeerIp) {
+        showAlert('danger', 'Please select a target peer first.');
+        return;
+      }
+
+      const sendBtn = document.getElementById('send-btn');
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<span class="spinner"></span> Transferring...';
+
+      try {
+        if (currentSendMode === 'upload') {
+          if (!selectedFile) {
+            showAlert('danger', 'Please select a file to send.');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<span>Send to Peer</span>';
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append('target_ip', selectedPeerIp);
+          formData.append('file', selectedFile);
+
+          const res = await fetch('/api/send', {
+            method: 'POST',
+            body: formData
+          });
+          const result = await res.json();
+          if (result.status === 'success') {
+            showAlert('success', result.message || 'File transferred successfully!');
+          } else {
+            showAlert('danger', result.message || 'Transfer failed.');
+          }
+        } else {
+          const directPath = document.getElementById('direct-path-input').value.trim();
+          if (!directPath) {
+            showAlert('danger', 'Please specify a valid file or folder path.');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<span>Send to Peer</span>';
+            return;
+          }
+
+          const res = await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_ip: selectedPeerIp, file_path: directPath })
+          });
+          const result = await res.json();
+          if (result.status === 'success') {
+            showAlert('success', result.message || 'Payload transferred successfully!');
+          } else {
+            showAlert('danger', result.message || 'Transfer failed.');
+          }
+        }
+      } catch (err) {
+        showAlert('danger', 'Network transfer error: ' + err.message);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<span>Send to Peer</span>';
+        loadReceivedFiles();
+      }
+    }
+
+    // Polling Live Terminal Logs
+    async function pollLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        const data = await res.json();
+        if (data.logs) {
+          const terminal = document.getElementById('terminal-logs');
+          terminal.innerHTML = data.logs.map(log => `<div class="terminal-line">${escapeHtml(log)}</div>`).join('');
+          terminal.scrollTop = terminal.scrollHeight;
+        }
+      } catch (e) {}
+    }
+
+    function clearLogs() {
+      fetch('/api/logs/clear', { method: 'POST' }).then(() => {
+        document.getElementById('terminal-logs').innerHTML = '';
+      });
+    }
+
+    // Load Received Files
+    async function loadReceivedFiles() {
+      const listEl = document.getElementById('received-list');
+      try {
+        const res = await fetch('/api/received');
+        const data = await res.json();
+        if (!data.files || data.files.length === 0) {
+          listEl.innerHTML = '<div class="empty-state" style="padding: 16px;">No received files yet.</div>';
+          return;
+        }
+        listEl.innerHTML = data.files.map(f => `
+          <div class="received-item">
+            <div>
+              <div class="file-name">${escapeHtml(f.name)}</div>
+              <div class="file-meta">${formatBytes(f.size)} • ${f.modified}</div>
+            </div>
+            <span style="color: var(--success); font-weight: 600; font-size: 0.8rem;">✓ Stored</span>
+          </div>
+        `).join('');
+      } catch (e) {
+        listEl.innerHTML = '<div class="empty-state" style="padding: 16px;">Failed to load inbox files.</div>';
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Run on startup
+    loadStatus();
+    loadReceivedFiles();
+    setInterval(pollLogs, 1500);
+    setInterval(loadReceivedFiles, 5000);
+  </script>
+</body>
+</html>
