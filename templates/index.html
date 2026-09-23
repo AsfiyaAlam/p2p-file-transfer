@@ -581,7 +581,9 @@
         if (!data.peers || data.peers.length === 0) {
           peerList.innerHTML = '<div class="empty-state">No peers found on the network. Make sure other devices are running the application.</div>';
         } else {
-          data.peers.forEach((ip, idx) => {
+          data.peers.forEach((peer, idx) => {
+            const ip = peer.ip;
+            const alias = peer.alias || 'Unknown';
             const item = document.createElement('div');
             item.className = 'peer-item' + (ip === selectedPeerIp ? ' selected' : '');
             item.onclick = () => selectPeer(ip, item);
@@ -590,7 +592,7 @@
                 <span class="peer-icon">💻</span>
                 <div>
                   <div class="peer-ip">${ip}</div>
-                  <div class="peer-tag">Peer #${idx + 1}</div>
+                  <div class="peer-tag">${escapeHtml(alias)}</div>
                 </div>
               </div>
               <span style="font-size: 0.8rem; color: var(--accent); font-weight: 600;">${ip === selectedPeerIp ? '✓ Selected' : 'Connect'}</span>

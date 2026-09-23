@@ -4,7 +4,8 @@ from discovery import NetworkDiscovery
 from transfer import FileTransfer
 
 def main():
-    discovery = NetworkDiscovery()
+    alias = input("Enter device alias (leave blank for default hostname): ").strip()
+    discovery = NetworkDiscovery(alias=alias if alias else None)
     transfer = FileTransfer()
 
     discovery_thread = threading.Thread(target=discovery.start_listner, daemon = True)
@@ -25,13 +26,12 @@ def main():
                 print("no peer found")
                 continue
             print("\nDiscovered Peers:")
-            for index, ip in enumerate(discovered_peers, start=1):
-                print(f"{index}. {ip}")
+            for index, peer in enumerate(discovered_peers, start=1):
+                print(f"{index}. {peer['ip']} (Alias: {peer['alias']})")
 
-            print(discovered_peers)
             peer_choice = int(input("Enter the number of the peer to connect to: ")) - 1
 
-            target_ip = discovered_peers[peer_choice]
+            target_ip = discovered_peers[peer_choice]['ip']
             file_path = input("Enter the file path: ")
             transfer.send_file(target_ip, file_path)
         elif choice == '2':

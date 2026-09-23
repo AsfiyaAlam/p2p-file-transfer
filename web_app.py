@@ -45,7 +45,7 @@ capturer = LogCapturer(sys.stdout)
 sys.stdout = capturer
 
 # Initialize existing engines (completely untouched)
-discovery = NetworkDiscovery()
+discovery = None # Will be initialized in main
 transfer = FileTransfer()
 
 # Staging directory for browser uploads
@@ -218,7 +218,9 @@ class P2PWebHandler(BaseHTTPRequestHandler):
         pass
 
 
-def start_app(port=5000):
+def start_app(port=5000, alias=None):
+    global discovery
+    discovery = NetworkDiscovery(alias=alias)
     # 1. Start background P2P listener threads (untouched functionality)
     discovery_thread = threading.Thread(target=discovery.start_listner, daemon=True)
     server_thread = threading.Thread(target=transfer.server, daemon=True)
@@ -245,6 +247,7 @@ def start_app(port=5000):
     print("🌐 P2P File Transfer Web Application Running!")
     print(f"👉 Local Access:   http://localhost:{port}")
     print(f"👉 LAN Network:    http://{host_ip}:{port}")
+    print(f"👉 Device Alias:   {discovery.alias}")
     print("=" * 60)
 
     try:
@@ -257,6 +260,16 @@ def start_app(port=5000):
 
 if __name__ == '__main__':
     port = 5000
-    if len(sys.argv) > 1 and sys.argv[1].isdigit():
-        port = int(sys.argv[1])
-    start_app(port=port)
+    alias = None
+    args = sys.argv[1:]
+    
+    # Simple CLI argument parsing
+    if args and args[0].isdigit():
+        port = int(args.pop(0))
+    
+    if '--alias' in args:
+        idx = args.index('--alias')
+        if idx + 1 < len(args):
+            alias = args[idx + 1]
+            
+    start_app(port=port, alias=alias)
