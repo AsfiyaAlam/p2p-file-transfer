@@ -1,8 +1,12 @@
 import os
 import shutil
 import socket 
+import time
 from utils import zip_folder, unzip_folder, calculate_hash
 
+# Global chat history to store messages and file events
+# Format: {'peer_ip': ip, 'type': 'text'|'file', 'direction': 'in'|'out', 'content': string, 'timestamp': float}
+chat_history = []
 
 class FileTransfer:
     def __init__(self, host='0.0.0.0', port=12345):
@@ -16,13 +20,27 @@ class FileTransfer:
         print(f"Listening for connections on {self.host}:{self.port}...")
         while True:
             conn, addr = reciever_socket.accept()
-            print(f"Connected to {addr}")
+            peer_ip = addr[0]
+            print(f"Connected to {peer_ip}")
             try:
             
                 raw_header = conn.recv(1024)
                 header = raw_header.decode('utf-8')
                 
                 if header:
+                    if header.startswith('CHAT|'):
+                        _, msg_content = header.split('|', 1)
+                        chat_history.append({
+                            'peer_ip': peer_ip,
+                            'type': 'text',
+                            'direction': 'in',
+                            'content': msg_content,
+                            'timestamp': time.time()
+                        })
+                        print(f"Received message from {peer_ip}: {msg_content}")
+                        conn.sendall(b'EXIT')
+                        continue
+
                     file_name, file_size, file_hash = header.split('|')
                     file_size = int(file_size)
                     print(f"Receiving file: {file_name} of size: {file_size} bytes")
@@ -50,6 +68,15 @@ class FileTransfer:
                     received_hash = calculate_hash(file_name)
                     if received_hash == file_hash:
                         print(f"File received successfully and verified.")
+                        
+                        chat_history.append({
+                            'peer_ip': peer_ip,
+                            'type': 'file',
+                            'direction': 'in',
+                            'content': os.path.basename(file_name),
+                            'timestamp': time.time()
+                        })
+
                         if file_name.endswith('.zip'):
                             received_folder = unzip_folder(file_name)
                     else:
@@ -63,6 +90,30 @@ class FileTransfer:
                 conn.sendall(b'EXIT')
                 
                 conn.close()
+
+    def send_message(self, target_ip, message):
+        sender_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print(f"Sending message to {target_ip}...")
+        try:
+            sender_socket.connect((target_ip, self.port))
+            header = f"CHAT|{message}"
+            sender_socket.send(header.encode('utf-8'))
+            
+            # Wait for Server to confirm receipt
+            exit_message = sender_socket.recv(1024).decode('utf-8')
+            if exit_message == 'EXIT':
+                print("Message sent successfully.")
+                chat_history.append({
+                    'peer_ip': target_ip,
+                    'type': 'text',
+                    'direction': 'out',
+                    'content': message,
+                    'timestamp': time.time()
+                })
+        except Exception as e:
+            print("Message transfer failed: ", e)
+        finally:
+            sender_socket.close()
 
     def send_file(self, target_ip, file_path):
         sender_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -95,6 +146,13 @@ class FileTransfer:
                             break
                         sender_socket.sendall(chunk)
                 print("File data sent successfully.")
+                chat_history.append({
+                    'peer_ip': target_ip,
+                    'type': 'file',
+                    'direction': 'out',
+                    'content': file_name,
+                    'timestamp': time.time()
+                })
 
             # Wait for Server to confirm receipt before closing
             exit_message = sender_socket.recv(1024).decode('utf-8')

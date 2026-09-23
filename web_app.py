@@ -10,7 +10,8 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
 from discovery import NetworkDiscovery
-from transfer import FileTransfer
+from transfer import FileTransfer, chat_history
+from urllib.parse import parse_qs
 
 # Global log capture so UI can display live progress
 class LogCapturer:
@@ -112,6 +113,15 @@ class P2PWebHandler(BaseHTTPRequestHandler):
         elif path == '/api/logs':
             self._send_json({"logs": capturer.get_logs()})
 
+        elif path == '/api/chat':
+            query = parse_qs(parsed.query)
+            peer_ip = query.get('peer', [''])[0]
+            if not peer_ip:
+                self._send_json({"error": "peer parameter required"}, status=400)
+                return
+            messages = [msg for msg in chat_history if msg['peer_ip'] == peer_ip]
+            self._send_json({"messages": messages})
+
         elif path == '/api/received':
             files = []
             for item in os.listdir(BASE_DIR):
@@ -152,6 +162,20 @@ class P2PWebHandler(BaseHTTPRequestHandler):
         elif path == '/api/logs/clear':
             capturer.clear()
             self._send_json({"status": "cleared"})
+
+        elif path == '/api/chat':
+            try:
+                payload = json.loads(body.decode('utf-8'))
+                target_ip = payload.get('target_ip')
+                message = payload.get('message')
+                if not target_ip or not message:
+                    self._send_json({"status": "error", "message": "target_ip and message required"}, status=400)
+                    return
+                print(f"[Web GUI] Sending message to {target_ip}")
+                transfer.send_message(target_ip, message)
+                self._send_json({"status": "success"})
+            except Exception as e:
+                self._send_json({"status": "error", "message": str(e)}, status=500)
 
         elif path == '/api/send':
             content_type = self.headers.get('Content-Type', '')
