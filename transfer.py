@@ -20,6 +20,7 @@ class FileTransfer:
         print(f"Listening for connections on {self.host}:{self.port}...")
         while True:
             conn, addr = reciever_socket.accept()
+            print(f"Connected to {addr}")
             peer_ip = addr[0]
             print(f"Connected to {peer_ip}")
             try:
@@ -38,7 +39,6 @@ class FileTransfer:
                             'timestamp': time.time()
                         })
                         print(f"Received message from {peer_ip}: {msg_content}")
-                        conn.sendall(b'EXIT')
                         continue
 
                     file_name, file_size, file_hash = header.split('|')
@@ -86,9 +86,11 @@ class FileTransfer:
                 print("connection with cient lost: ", e)
             finally:
                 
-                # Send exit confirmation so the client knows it's safe to hang up
-                conn.sendall(b'EXIT')
-                
+                try:
+                    # Send exit confirmation so the client knows it's safe to hang up
+                    conn.sendall(b'EXIT')
+                except:
+                    pass
                 conn.close()
 
     def send_message(self, target_ip, message):
@@ -101,7 +103,7 @@ class FileTransfer:
             
             # Wait for Server to confirm receipt
             exit_message = sender_socket.recv(1024).decode('utf-8')
-            if exit_message == 'EXIT':
+            if 'EXIT' in exit_message:
                 print("Message sent successfully.")
                 chat_history.append({
                     'peer_ip': target_ip,
@@ -112,6 +114,7 @@ class FileTransfer:
                 })
         except Exception as e:
             print("Message transfer failed: ", e)
+            raise e
         finally:
             sender_socket.close()
 
@@ -156,9 +159,10 @@ class FileTransfer:
 
             # Wait for Server to confirm receipt before closing
             exit_message = sender_socket.recv(1024).decode('utf-8')
-            if exit_message == 'EXIT':
+            if 'EXIT' in exit_message:
                 print("Server confirmed receipt. Disconnecting.")
         except Exception as e:
             print("Transfer failed: ", e)
+            raise e
         finally:
             sender_socket.close()

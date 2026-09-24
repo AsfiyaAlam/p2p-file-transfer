@@ -432,6 +432,8 @@
   <script>
     let activePeerIp = null;
     let autoRefreshInterval = null;
+    let peersRefreshInterval = null;
+    let knownPeersCount = 0;
 
     async function scanNetwork() {
       const btn = document.getElementById('scan-btn');
@@ -445,8 +447,37 @@
         
         if (!data.peers || data.peers.length === 0) {
           list.innerHTML = '<div style="padding: 30px 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">No peers found.<br>Make sure they are running the app.</div>';
+          knownPeersCount = 0;
         } else {
-          data.peers.forEach(peer => {
+          knownPeersCount = data.peers.length;
+          renderPeerList(data.peers);
+        }
+      } catch (e) {
+        alert("Scan failed: " + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Scan';
+      }
+    }
+
+    async function pollPeers() {
+      try {
+        const res = await fetch('/api/peers');
+        const data = await res.json();
+        if (data.peers && data.peers.length > 0) {
+          if (data.peers.length !== knownPeersCount) {
+             // If peer count changed (e.g. new message received), re-render sidebar silently
+             knownPeersCount = data.peers.length;
+             renderPeerList(data.peers);
+          }
+        }
+      } catch (e) {}
+    }
+
+    function renderPeerList(peers) {
+        const list = document.getElementById('peer-list');
+        list.innerHTML = '';
+        peers.forEach(peer => {
             const el = document.createElement('div');
             el.className = 'peer-item' + (activePeerIp === peer.ip ? ' active' : '');
             el.onclick = () => selectPeer(peer.ip, peer.alias || 'Unknown');
@@ -459,14 +490,7 @@
               <div class="peer-status-dot"></div>
             `;
             list.appendChild(el);
-          });
-        }
-      } catch (e) {
-        alert("Scan failed: " + e.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Scan';
-      }
+        });
     }
 
     function selectPeer(ip, alias) {
@@ -626,6 +650,10 @@
             sendPath();
         }
     });
+    
+    // Start polling peers list automatically
+    peersRefreshInterval = setInterval(pollPeers, 3000);
+    pollPeers(); // initial call
   </script>
 </body>
 </html>

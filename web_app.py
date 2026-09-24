@@ -48,6 +48,7 @@ sys.stdout = capturer
 # Initialize existing engines (completely untouched)
 discovery = None # Will be initialized in main
 transfer = FileTransfer()
+known_peers = {} # Global dict of known peers (IP -> Alias)
 
 # Staging directory for browser uploads
 UPLOAD_DIR = os.path.abspath("temp_uploads")
@@ -113,6 +114,16 @@ class P2PWebHandler(BaseHTTPRequestHandler):
         elif path == '/api/logs':
             self._send_json({"logs": capturer.get_logs()})
 
+        elif path == '/api/peers':
+            # Collect peers from discovery (if any) and chat_history
+            for msg in chat_history:
+                ip = msg['peer_ip']
+                if ip not in known_peers:
+                    known_peers[ip] = "Unknown"
+            
+            peer_list = [{"ip": ip, "alias": alias} for ip, alias in known_peers.items()]
+            self._send_json({"peers": peer_list})
+
         elif path == '/api/chat':
             query = parse_qs(parsed.query)
             peer_ip = query.get('peer', [''])[0]
@@ -153,11 +164,21 @@ class P2PWebHandler(BaseHTTPRequestHandler):
             print("[Web GUI] Scanning network for P2P peers...")
             try:
                 discovered_peers = discovery.scan_network()
+                for p in discovered_peers:
+                    known_peers[p['ip']] = p['alias']
             except Exception as e:
                 print(f"[Web GUI] Scan error (offline or no broadcast route): {e}")
                 discovered_peers = []
             print(f"[Web GUI] Discovered peers: {discovered_peers}")
-            self._send_json({"peers": discovered_peers})
+            
+            # Also merge with any from chat history
+            for msg in chat_history:
+                ip = msg['peer_ip']
+                if ip not in known_peers:
+                    known_peers[ip] = "Unknown"
+            
+            merged_peers = [{"ip": ip, "alias": alias} for ip, alias in known_peers.items()]
+            self._send_json({"peers": merged_peers})
 
         elif path == '/api/logs/clear':
             capturer.clear()
