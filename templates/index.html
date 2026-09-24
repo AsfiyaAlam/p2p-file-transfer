@@ -6,18 +6,29 @@
   <title>P2P File Transfer & Chat</title>
   <style>
     :root {
-      --bg: #0a0a0a;
-      --sidebar-bg: #111b21;
-      --chat-bg: #0b141a;
-      --header-bg: #202c33;
-      --message-in: #202c33;
-      --message-out: #005c4b;
-      --text-main: #e9edef;
-      --text-muted: #8696a0;
-      --accent: #00a884;
-      --accent-hover: #008f6f;
-      --border: #222d34;
-      --input-bg: #2a3942;
+      /* Original Deep Blue / Slate Theme */
+      --bg: #0b0f19;
+      --sidebar-bg: #131b2e;
+      --chat-bg: #0b0f19;
+      --header-bg: #131b2e;
+      
+      --message-in: #1e293b;
+      --message-out: #2563eb;
+      
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-glow: rgba(59, 130, 246, 0.25);
+      
+      --border: #222f4c;
+      --input-bg: #1e293b;
+      
+      --success: #10b981;
+      --danger: #ef4444;
+      
+      --radius: 12px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -30,41 +41,77 @@
       height: 100vh;
       overflow: hidden;
     }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.2);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.4);
+    }
 
     /* Sidebar (Left) */
     .sidebar {
-      width: 350px;
+      width: 320px;
       background-color: var(--sidebar-bg);
       display: flex;
       flex-direction: column;
       border-right: 1px solid var(--border);
+      box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+      z-index: 10;
     }
     
     .sidebar-header {
       background-color: var(--header-bg);
-      padding: 15px;
+      padding: 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      height: 60px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .sidebar-header h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-main);
+      letter-spacing: 0.5px;
     }
     
     .scan-btn {
       background-color: var(--accent);
       color: #fff;
       border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px var(--accent-glow);
     }
-    .scan-btn:hover { background-color: var(--accent-hover); }
-    .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .scan-btn:hover { 
+      background-color: var(--accent-hover); 
+      transform: translateY(-1px);
+    }
+    .scan-btn:active {
+      transform: translateY(1px);
+    }
+    .scan-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none;}
 
     .peer-list {
       flex-grow: 1;
       overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
     
     .peer-item {
@@ -72,28 +119,44 @@
       align-items: center;
       padding: 12px 15px;
       cursor: pointer;
-      border-bottom: 1px solid var(--border);
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
     }
     
-    .peer-item:hover, .peer-item.active {
-      background-color: var(--header-bg);
+    .peer-item:hover {
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+    
+    .peer-item.active {
+      background-color: rgba(59, 130, 246, 0.1);
+      border-color: rgba(59, 130, 246, 0.3);
     }
     
     .peer-avatar {
-      width: 45px;
-      height: 45px;
-      border-radius: 50%;
-      background-color: var(--accent);
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 18px;
       margin-right: 15px;
+      box-shadow: 0 4px 10px var(--accent-glow);
     }
 
-    .peer-details { flex-grow: 1; }
-    .peer-alias { font-size: 16px; margin-bottom: 3px; }
-    .peer-ip { font-size: 13px; color: var(--text-muted); }
+    .peer-details { flex-grow: 1; overflow: hidden;}
+    .peer-alias { font-size: 0.95rem; font-weight: 500; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+    .peer-ip { font-size: 0.8rem; color: var(--text-muted); font-family: monospace;}
+    
+    .peer-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success-glow);
+    }
 
     /* Main Chat Area (Right) */
     .chat-area {
@@ -102,129 +165,205 @@
       flex-direction: column;
       background-color: var(--chat-bg);
       position: relative;
+      background-image: radial-gradient(circle at center, rgba(59, 130, 246, 0.03) 0%, transparent 70%);
     }
     
     .empty-chat {
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       background-color: var(--chat-bg);
       z-index: 10;
       color: var(--text-muted);
-      font-size: 18px;
+    }
+    
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      opacity: 0.5;
     }
 
     .chat-header {
-      background-color: var(--header-bg);
-      padding: 10px 20px;
+      background-color: rgba(19, 27, 46, 0.8);
+      backdrop-filter: blur(10px);
+      padding: 15px 25px;
       display: flex;
       align-items: center;
-      height: 60px;
+      border-bottom: 1px solid var(--border);
     }
     
-    .chat-header .peer-alias { font-weight: 500; font-size: 16px; margin-bottom: 2px;}
+    .chat-header .peer-avatar {
+      width: 36px;
+      height: 36px;
+      font-size: 16px;
+      box-shadow: none;
+    }
+    
+    .chat-header .peer-alias { font-size: 1.1rem; font-weight: 600; margin-bottom: 2px;}
     
     .messages-container {
       flex-grow: 1;
-      padding: 20px;
+      padding: 25px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 15px;
     }
     
     .message {
       max-width: 65%;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 15px;
-      line-height: 1.4;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      line-height: 1.5;
       position: relative;
       word-wrap: break-word;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
     .message.in {
       align-self: flex-start;
       background-color: var(--message-in);
-      border-top-left-radius: 0;
+      border-bottom-left-radius: 4px;
     }
     
     .message.out {
       align-self: flex-end;
       background-color: var(--message-out);
-      border-top-right-radius: 0;
+      border-bottom-right-radius: 4px;
     }
     
     .message-time {
-      font-size: 11px;
+      font-size: 0.7rem;
       color: rgba(255,255,255,0.6);
       text-align: right;
-      margin-top: 4px;
+      margin-top: 6px;
+      user-select: none;
     }
 
     .file-attachment {
       display: flex;
       align-items: center;
-      background: rgba(0,0,0,0.2);
-      padding: 10px;
-      border-radius: 6px;
-      margin-bottom: 5px;
-      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.25);
+      padding: 12px;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      border: 1px solid rgba(255,255,255,0.05);
     }
-    .file-icon { font-size: 24px; margin-right: 12px; }
-    .file-name { font-weight: 500; font-size: 14px; }
+    .file-icon { 
+      font-size: 24px; 
+      margin-right: 15px;
+      background: rgba(255,255,255,0.1);
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+    }
+    .file-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 3px; word-break: break-all;}
+    .file-meta { font-size: 0.75rem; opacity: 0.8;}
 
     /* Input Area */
     .input-area {
-      background-color: var(--header-bg);
-      padding: 12px 20px;
+      background-color: var(--sidebar-bg);
+      padding: 20px 25px;
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 12px;
+      border-top: 1px solid var(--border);
     }
     
     .action-btn {
-      background: none;
-      border: none;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
       color: var(--text-muted);
-      font-size: 22px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.2s;
+      transition: all 0.2s ease;
+      font-size: 1.1rem;
     }
-    .action-btn:hover { color: var(--text-main); }
+    .action-btn:hover { 
+      color: var(--text-main); 
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+    }
+    
+    .message-input-wrapper {
+      flex-grow: 1;
+      position: relative;
+    }
     
     .message-input {
-      flex-grow: 1;
+      width: 100%;
       background-color: var(--input-bg);
       border: 1px solid var(--border);
       color: var(--text-main);
-      padding: 12px 15px;
-      border-radius: 8px;
-      font-size: 15px;
+      padding: 14px 20px;
+      border-radius: 24px;
+      font-size: 0.95rem;
       outline: none;
+      transition: border-color 0.2s;
     }
-    .message-input:focus { border-color: var(--accent); }
+    .message-input:focus { 
+      border-color: var(--accent); 
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+    
+    .send-btn {
+      background-color: var(--accent);
+      border: none;
+      color: white;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      font-size: 1.1rem;
+      margin-left: 5px;
+      box-shadow: 0 4px 10px var(--accent-glow);
+    }
+    .send-btn:hover {
+      background-color: var(--accent-hover);
+      transform: scale(1.05);
+    }
+    .send-btn:active {
+      transform: scale(0.95);
+    }
 
     /* Modals & Alerts */
     .modal {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
       align-items: center; justify-content: center; z-index: 100;
     }
     .modal-content {
-      background: var(--header-bg); padding: 25px; border-radius: 12px; width: 400px;
+      background: var(--sidebar-bg); padding: 30px; border-radius: 16px; width: 420px;
       border: 1px solid var(--border);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
     }
-    .modal h3 { margin-bottom: 15px; }
-    .modal input { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid var(--border); background: var(--input-bg); color: white; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
-    .btn { padding: 8px 15px; border-radius: 6px; border: none; cursor: pointer; color: white; font-weight:500;}
-    .btn-cancel { background: var(--border); }
-    .btn-primary { background: var(--accent); }
+    .modal h3 { margin-bottom: 20px; font-size: 1.25rem; font-weight: 600;}
+    .modal input { 
+      width: 100%; padding: 12px 15px; margin-bottom: 20px; 
+      border-radius: 8px; border: 1px solid var(--border); 
+      background: var(--input-bg); color: white; 
+      font-size: 0.95rem; outline: none;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+    .btn { padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: 500; transition: all 0.2s;}
+    .btn-cancel { background: var(--input-bg); border: 1px solid var(--border); }
+    .btn-cancel:hover { background: rgba(255,255,255,0.1); }
+    .btn-primary { background: var(--accent); box-shadow: 0 4px 12px var(--accent-glow);}
+    .btn-primary:hover { background: var(--accent-hover); }
 
   </style>
 </head>
@@ -233,19 +372,23 @@
   <!-- Sidebar -->
   <div class="sidebar">
     <div class="sidebar-header">
-      <h2>Peers</h2>
+      <h2>P2P Network</h2>
       <button class="scan-btn" id="scan-btn" onclick="scanNetwork()">Scan</button>
     </div>
     <div class="peer-list" id="peer-list">
-      <div style="padding: 20px; text-align: center; color: var(--text-muted);">
-        Click Scan to find peers
+      <div style="padding: 30px 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+        Click <strong>Scan</strong> to discover<br>peers on your network
       </div>
     </div>
   </div>
 
   <!-- Main Chat -->
   <div class="chat-area">
-    <div class="empty-chat" id="empty-chat">Select a peer to start chatting or transferring files</div>
+    <div class="empty-chat" id="empty-chat">
+      <div class="empty-icon">🪐</div>
+      <h2>No Peer Selected</h2>
+      <p style="margin-top: 10px; opacity: 0.7; font-size: 0.9rem;">Select a peer from the sidebar to start chatting or transferring files.</p>
+    </div>
     
     <div class="chat-header">
       <div class="peer-avatar">💻</div>
@@ -267,8 +410,10 @@
       <!-- Folder/Path Upload button -->
       <button class="action-btn" title="Send Folder Path" onclick="openPathModal()">📁</button>
       
-      <input type="text" class="message-input" id="message-input" placeholder="Type a message..." onkeypress="handleEnter(event)">
-      <button class="action-btn" onclick="sendTextMessage()">➤</button>
+      <div class="message-input-wrapper">
+        <input type="text" class="message-input" id="message-input" placeholder="Type a message..." onkeypress="handleEnter(event)">
+      </div>
+      <button class="send-btn" onclick="sendTextMessage()">➤</button>
     </div>
   </div>
 
@@ -299,7 +444,7 @@
         list.innerHTML = '';
         
         if (!data.peers || data.peers.length === 0) {
-          list.innerHTML = '<div style="padding:20px; text-align:center; color:gray;">No peers found.</div>';
+          list.innerHTML = '<div style="padding: 30px 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">No peers found.<br>Make sure they are running the app.</div>';
         } else {
           data.peers.forEach(peer => {
             const el = document.createElement('div');
@@ -311,6 +456,7 @@
                 <div class="peer-alias">${escapeHtml(peer.alias || 'Unknown')}</div>
                 <div class="peer-ip">${peer.ip}</div>
               </div>
+              <div class="peer-status-dot"></div>
             `;
             list.appendChild(el);
           });
@@ -364,10 +510,10 @@
           return `
             <div class="message ${msg.direction}">
               <div class="file-attachment">
-                <div class="file-icon">📄</div>
+                <div class="file-icon">📦</div>
                 <div>
                   <div class="file-name">${escapeHtml(msg.content)}</div>
-                  <div style="font-size: 11px; opacity: 0.8;">${msg.direction === 'in' ? 'Received (Saved in inbox)' : 'Sent successfully'}</div>
+                  <div class="file-meta">${msg.direction === 'in' ? 'Saved securely in inbox' : 'Transferred successfully'}</div>
                 </div>
               </div>
               <div class="message-time">${timeStr}</div>
@@ -376,7 +522,7 @@
         } else {
           return `
             <div class="message ${msg.direction}">
-              <div>${escapeHtml(msg.content)}</div>
+              <div>${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>
               <div class="message-time">${timeStr}</div>
             </div>
           `;
@@ -435,15 +581,23 @@
          return;
       }
       document.getElementById('path-modal').style.display = 'flex';
+      document.getElementById('path-input').focus();
     }
+    
     function closePathModal() {
       document.getElementById('path-modal').style.display = 'none';
+      document.getElementById('path-input').value = '';
     }
+    
     async function sendPath() {
       const path = document.getElementById('path-input').value.trim();
       if(!path) return;
       
-      closePathModal();
+      const btn = document.querySelector('.btn-primary');
+      const oldText = btn.textContent;
+      btn.textContent = 'Sending...';
+      btn.disabled = true;
+      
       try {
         const res = await fetch('/api/send', {
           method: 'POST',
@@ -452,15 +606,26 @@
         });
         const data = await res.json();
         if(data.status !== 'success') throw new Error(data.message);
+        closePathModal();
         loadChatHistory();
       } catch(e) {
         alert("Transfer failed: " + e.message);
+      } finally {
+        btn.textContent = oldText;
+        btn.disabled = false;
       }
     }
 
     function escapeHtml(str) {
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
+    
+    // Allow enter key in modal
+    document.getElementById('path-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            sendPath();
+        }
+    });
   </script>
 </body>
 </html>
