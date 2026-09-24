@@ -383,6 +383,17 @@
       font-size: 0.8rem;
     }
     
+    .toast-cancel {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 1.1rem;
+      margin-left: 10px;
+      padding: 0 5px;
+    }
+    .toast-cancel:hover { opacity: 0.8; }
+    
     .progress-bar-bg {
       height: 6px;
       background-color: var(--input-bg);
@@ -729,7 +740,10 @@
             <div class="toast">
               <div class="toast-header">
                 <span style="font-size: 0.8rem; opacity: 0.7;">${directionIcon}</span>
-                <span class="toast-percent">${percent}%</span>
+                <div>
+                  <span class="toast-percent">${percent}%</span>
+                  <button class="toast-cancel" title="Cancel Transfer" onclick="cancelTransfer('${t.peer_ip}_${t.file_name.replace(/'/g, "\'")}')">✖</button>
+                </div>
               </div>
               <div class="toast-filename" title="${escapeHtml(t.file_name)}">${escapeHtml(t.file_name)}</div>
               <div class="progress-bar-bg">
@@ -744,6 +758,21 @@
       } catch (e) {}
     }
     
+    async function cancelTransfer(transferId) {
+      if(!confirm("Are you sure you want to cancel this transfer?")) return;
+      try {
+        await fetch('/api/cancel', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({transfer_id: transferId})
+        });
+        // Optimistically remove from UI
+        pollProgress();
+      } catch (e) {
+        alert("Failed to cancel: " + e.message);
+      }
+    }
+
     function formatBytes(bytes) {
       if (bytes === 0) return '0 B';
       const k = 1024;

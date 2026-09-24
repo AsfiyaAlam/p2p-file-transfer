@@ -66,12 +66,17 @@ class FileTransfer:
                     with open(f"{file_name}", "ab") as f:
                         bytes_received = existing_bytes
                         while bytes_received < file_size:
+                            if active_transfers.get(transfer_id, {}).get('cancelled'):
+                                print("Receiver cancelled transfer.")
+                                break
+                            
                             chunk = conn.recv(65536)
                             if not chunk:
                                 break
                             f.write(chunk)
                             bytes_received += len(chunk)
-                            active_transfers[transfer_id]['transferred'] = bytes_received
+                            if transfer_id in active_transfers:
+                                active_transfers[transfer_id]['transferred'] = bytes_received
                     
                     if transfer_id in active_transfers:
                         del active_transfers[transfer_id]
@@ -161,12 +166,17 @@ class FileTransfer:
                 with open(file_path, "rb") as file:
                     file.seek(bytes_sent)
                     while True:
+                        if active_transfers.get(transfer_id, {}).get('cancelled'):
+                            print("Sender cancelled transfer.")
+                            raise Exception("Cancelled by user")
+                            
                         chunk = file.read(65536)
                         if not chunk:
                             break
                         sender_socket.sendall(chunk)
                         bytes_sent += len(chunk)
-                        active_transfers[transfer_id]['transferred'] = bytes_sent
+                        if transfer_id in active_transfers:
+                            active_transfers[transfer_id]['transferred'] = bytes_sent
                 
                 if transfer_id in active_transfers:
                     del active_transfers[transfer_id]
