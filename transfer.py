@@ -2,8 +2,10 @@ import os
 import shutil
 import socket 
 import time
+import uuid
 from utils import zip_folder, unzip_folder, calculate_hash
 
+active_transfers = {}
 # Global chat history to store messages and file events
 # Format: {'peer_ip': ip, 'type': 'text'|'file', 'direction': 'in'|'out', 'content': string, 'timestamp': float}
 chat_history = []
@@ -56,14 +58,23 @@ class FileTransfer:
 
 
                     # Open file and receive chunks
+                    transfer_id = f"{peer_ip}_{file_name}"
+                    active_transfers[transfer_id] = {
+                        'peer_ip': peer_ip, 'file_name': file_name, 'direction': 'in',
+                        'transferred': existing_bytes, 'total': file_size
+                    }
                     with open(f"{file_name}", "ab") as f:
                         bytes_received = existing_bytes
                         while bytes_received < file_size:
-                            chunk = conn.recv(1024)
+                            chunk = conn.recv(65536)
                             if not chunk:
                                 break
                             f.write(chunk)
                             bytes_received += len(chunk)
+                            active_transfers[transfer_id]['transferred'] = bytes_received
+                    
+                    if transfer_id in active_transfers:
+                        del active_transfers[transfer_id]
 
                     received_hash = calculate_hash(file_name)
                     if received_hash == file_hash:
@@ -141,13 +152,24 @@ class FileTransfer:
             message_recv, existing_byte = message.split('|')
             # Send File
             if message_recv == 'READY':
+                transfer_id = f"{target_ip}_{file_name}"
+                bytes_sent = int(existing_byte)
+                active_transfers[transfer_id] = {
+                    'peer_ip': target_ip, 'file_name': file_name, 'direction': 'out',
+                    'transferred': bytes_sent, 'total': file_size
+                }
                 with open(file_path, "rb") as file:
-                    file.seek(int(existing_byte))
+                    file.seek(bytes_sent)
                     while True:
-                        chunk = file.read(1024)
+                        chunk = file.read(65536)
                         if not chunk:
                             break
                         sender_socket.sendall(chunk)
+                        bytes_sent += len(chunk)
+                        active_transfers[transfer_id]['transferred'] = bytes_sent
+                
+                if transfer_id in active_transfers:
+                    del active_transfers[transfer_id]
                 print("File data sent successfully.")
                 chat_history.append({
                     'peer_ip': target_ip,

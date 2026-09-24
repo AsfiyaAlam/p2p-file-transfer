@@ -10,7 +10,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
 from discovery import NetworkDiscovery
-from transfer import FileTransfer, chat_history
+from transfer import FileTransfer, chat_history, active_transfers
 from urllib.parse import parse_qs
 
 # Global log capture so UI can display live progress
@@ -124,6 +124,9 @@ class P2PWebHandler(BaseHTTPRequestHandler):
             peer_list = [{"ip": ip, "alias": alias} for ip, alias in known_peers.items()]
             self._send_json({"peers": peer_list})
 
+        elif path == '/api/progress':
+            self._send_json({"transfers": list(active_transfers.values())})
+            
         elif path == '/api/chat':
             query = parse_qs(parsed.query)
             peer_ip = query.get('peer', [''])[0]
